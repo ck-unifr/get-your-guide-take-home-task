@@ -110,6 +110,8 @@ dtrain_sub_mat = xgb.DMatrix(X_train_sub, Y_train_sub)
 dval_mat = xgb.DMatrix(X_val, Y_val)
 dtest_mat = xgb.DMatrix(X_test)
 
+# details of xgboost parameters
+# http://xgboost.readthedocs.io/en/latest/parameter.html
 xgb_params = {'eta':0.1,
               'seed':42,
               'subsample':0.8,
@@ -122,6 +124,7 @@ xgb_params = {'eta':0.1,
               #'metrics':['mae'],
               'metrics':['rmse'],
               'eval_metric':['rmse'],
+              # 'nthread':1
               }
 
 # -------------------------------
@@ -281,7 +284,9 @@ best_model = xgb.train(
 
 # ---------
 # save the model
-best_model.save_model("gbm.model")
+xgb_model_path = "xgb-{}-{}-{}.model".format(n_fold, num_boost_round, early_stopping_rounds)
+best_model.save_model(xgb_model_path)
+print('save xgb model to {}'.format(xgb_model_path))
 
 
 # -------------

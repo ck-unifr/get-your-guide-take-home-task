@@ -130,15 +130,15 @@ xgb_params = {'eta':0.1,
 # -------------------------------
 # hyperparameter tuning with CV
 # take the idea from: https://cambridgespark.com/content/tutorials/hyperparameter-tuning-in-xgboost/index.html
-n_fold = 5
+n_fold = 2
 num_boost_round = 200
 early_stopping_rounds = 10
 
 # tune 'max_depth' and 'min_child_weight'
 gridsearch_params = [
     (max_depth, min_child_weight)
-    for max_depth in range(4, 8)
-    for min_child_weight in range(5, 8)
+    for max_depth in range(4, 5)
+    for min_child_weight in range(4, 5)
 ]
 
 min_rmse = float("Inf")
@@ -184,8 +184,8 @@ xgb_params['min_child_weight'] = best_params[1]
 
 gridsearch_params = [
     (subsample, colsample)
-    for subsample in [i/10. for i in range(7, 11)]
-    for colsample in [i/10. for i in range(7, 11)]
+    for subsample in [i/10. for i in range(10, 11)]
+    for colsample in [i/10. for i in range(10, 11)]
 ]
 
 min_rmse = float("Inf")
@@ -227,7 +227,8 @@ xgb_params['min_child_weight'] = best_params[1]
 #
 min_rmse = float("Inf")
 best_learning_rate = None
-learning_rate_range = [0.1, 0.05, 0.01, 0.005]
+# learning_rate_range = [0.1, 0.05, 0.01, 0.005]
+learning_rate_range = [0.1]
 
 for eta in learning_rate_range:
     print("CV with eta={}".format(eta))

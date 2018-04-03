@@ -15,16 +15,17 @@ from sklearn.model_selection import train_test_split
 
 import xgboost as xgb
 from sklearn.metrics import explained_variance_score
-from sklearn.metrics import mean_squared_error, r2_score
+from sklearn.metrics import mean_squared_error
+
 
 
 TRAIN_FILE = 'ds_dp_assessment/train.csv'
 TEST_FILE = 'ds_dp_assessment/prediction.csv'
 
+
 #--------------------
 # 1. Data preparation
 #
-
 train_df = pd.read_csv(TRAIN_FILE)
 train_df['RPC'] = train_df['Revenue']/train_df['Clicks']
 test_df = pd.read_csv(TEST_FILE)
@@ -71,34 +72,13 @@ print('----------------')
 # 3. Model training
 #
 
-# create validation set
-X_train_sub, X_val, Y_train_sub, Y_val = train_test_split(X_train, Y_train, test_size=0.1, random_state=42)
-
+# examples of using xgboost for regression
 #xgb_clf = xgb.XGBRegressor(n_estimators=100, learning_rate=0.08, gamma=0, subsample=0.75,
 #                           colsample_bytree=1, max_depth=7)
 #xgb_clf.fit(X_train_sub, Y_train_sub)
 #predictions = xgb_clf.predict(X_val)
 #print(predictions)
 #print(explained_variance_score(predictions,Y_val))
-
-dtrain_mat = xgb.DMatrix(X_train, Y_train)
-dtrain_sub_mat = xgb.DMatrix(X_train_sub, Y_train_sub)
-dval_mat = xgb.DMatrix(X_val, Y_val)
-dtest_mat = xgb.DMatrix(X_test)
-
-xgb_params = {'eta':0.1,
-              'seed':42,
-              'subsample':0.8,
-              'colsample_bytree':0.8,
-              'objective':'reg:linear',
-              #'objective':'binary:logistic',
-              'max_depth':6,
-              'min_child_weight':1,
-              #'metrics':['auc'],
-              #'metrics':['mae'],
-              'metrics':['rmse'],
-              'eval_metric':['rmse'],
-              }
 
 # xgb_model = xgb.train(
 #     xgb_params,
@@ -119,11 +99,36 @@ xgb_params = {'eta':0.1,
 # )
 # print(cv_results)
 
+
+# ----------------------
+# prepare datasets for xgb
+#
+X_train_sub, X_val, Y_train_sub, Y_val = train_test_split(X_train, Y_train, test_size=0.1, random_state=42)
+
+dtrain_mat = xgb.DMatrix(X_train, Y_train)
+dtrain_sub_mat = xgb.DMatrix(X_train_sub, Y_train_sub)
+dval_mat = xgb.DMatrix(X_val, Y_val)
+dtest_mat = xgb.DMatrix(X_test)
+
+xgb_params = {'eta':0.1,
+              'seed':42,
+              'subsample':0.8,
+              'colsample_bytree':0.8,
+              'objective':'reg:linear',
+              #'objective':'binary:logistic',
+              'max_depth':6,
+              'min_child_weight':1,
+              #'metrics':['auc'],
+              #'metrics':['mae'],
+              'metrics':['rmse'],
+              'eval_metric':['rmse'],
+              }
+
 # -------------------------------
 # hyperparameter tuning with CV
 # take the idea from: https://cambridgespark.com/content/tutorials/hyperparameter-tuning-in-xgboost/index.html
 n_fold = 5
-num_boost_round = 100
+num_boost_round = 200
 early_stopping_rounds = 10
 
 # tune 'max_depth' and 'min_child_weight'
@@ -142,13 +147,14 @@ for max_depth, min_child_weight in gridsearch_params:
     xgb_params['max_depth'] = max_depth
     xgb_params['min_child_weight'] = min_child_weight
 
-    #TODO: change metrics
+    # TODO: change metrics
     cv_results = xgb.cv(
         xgb_params,
         dtrain_sub_mat,
         num_boost_round=num_boost_round,
         seed=42,
         nfold=n_fold,
+        # metrics={'mae'},
         metrics={'rmse'},
         early_stopping_rounds=early_stopping_rounds
     )
@@ -161,7 +167,7 @@ for max_depth, min_child_weight in gridsearch_params:
         min_rmse = mean_rmse
         best_params = (max_depth, min_child_weight)
 
-print("Best params: {}, {}, MAE: {}".format(best_params[0], best_params[1], min_rmse))
+print("Best params: {}, {}, RMSE: {}".format(best_params[0], best_params[1], min_rmse))
 
 xgb_params['max_depth'] = best_params[0]
 xgb_params['min_child_weight'] = best_params[1]
@@ -208,17 +214,19 @@ for subsample, colsample in reversed(gridsearch_params):
         min_rmse = mean_rmse
         best_params = (subsample, colsample)
 
-print("Best params: {}, {}, MAE: {}".format(best_params[0], best_params[1], mean_rmse))
+print("Best params: {}, {}, RMSE: {}".format(best_params[0], best_params[1], mean_rmse))
 
 xgb_params['max_depth'] = best_params[0]
 xgb_params['min_child_weight'] = best_params[1]
 
+# ----------------------
 # tune learning rate
-# This can take some time…
+#
 min_rmse = float("Inf")
 best_learning_rate = None
+learning_rate_range = [0.1, 0.05, 0.01, 0.005]
 
-for eta in [.3, .2, .1, .05, .01, .005]:
+for eta in learning_rate_range:
     print("CV with eta={}".format(eta))
 
     xgb_params['eta'] = eta
@@ -241,14 +249,17 @@ for eta in [.3, .2, .1, .05, .01, .005]:
         min_rmse = mean_rmse
         best_learning_rate = eta
 
-print("Best params: {}, MAE: {}".format(best_learning_rate, mean_rmse))
+print("Best params: {}, RMSE: {}".format(best_learning_rate, mean_rmse))
 
 xgb_params['eta'] = best_learning_rate
 
 # show parameters
+print('XBG parameters')
 print(xgb_params)
 
-
+# ---------------
+# find the best number of boost round on the validation set
+#
 xgb_model = xgb.train(
     xgb_params,
     dtrain_sub_mat,
@@ -258,7 +269,8 @@ xgb_model = xgb.train(
 )
 
 # ---------
-# train the model on all the training set
+# train the final model with the tuned parameters on all the training set
+#
 num_boost_round = xgb_model.best_iteration + 1
 
 best_model = xgb.train(
@@ -278,10 +290,15 @@ best_model.save_model("gbm.model")
 # loaded_model.load_model("my_model.model")
 #
 # loaded_model.predict(dtest)
-y_test = best_model.predict(dtest_mat)
+y_prediction = best_model.predict(dtest_mat)
 
-print('y test')
-print(y_test)
+print('y prediction')
+print(y_prediction)
+
+# -------------
+# evaluation
+# mean_squared_error(y_prediction, y_test)
+
 
 
 # cv_results = xgb.cv(

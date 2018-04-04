@@ -164,6 +164,8 @@ def get_xgb_regressor(xgb_params):
 xgb_clf = get_xgb_regressor(xgb_params)
 
 if hyperparameter_tuning:
+    print('hyperparameter tuning ...')
+
     params = {
         # 'max_depth': range(4, 6, 2),
         'max_depth': [4, 6],

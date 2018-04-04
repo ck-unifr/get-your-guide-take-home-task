@@ -31,6 +31,13 @@ train_df = pd.read_csv(TRAIN_FILE)
 train_df['RPC'] = train_df['Revenue']/train_df['Clicks']
 test_df = pd.read_csv(TEST_FILE)
 
+print('max RPC {}'.format(train_df['RPC'].max()))
+print('min RPC {}'.format(train_df['RPC'].min()))
+print('mean RPC {}'.format(train_df['RPC'].mean()))
+print('std RPC {}'.format(train_df['RPC'].std()))
+
+
+
 #print(train_df.head())
 #print(train_df.describe())
 
@@ -82,7 +89,7 @@ print('----------------')
 #print(predictions)
 #print(explained_variance_score(predictions,Y_val))
 
-# xgb_model = xgb.train(
+# xgb_clf = xgb.train(
 #     xgb_params,
 #     dtrain_mat,
 #     num_boost_round=100,
@@ -138,223 +145,233 @@ xgb_params = {'eta':0.1,
               #'metrics':['mae'],
               'metrics':'rmse',
               'eval_metric':'rmse',
-              # 'nthread':1
-              'n_estimators':100,
+              # 'nthread':1,
               'n_fold': 3,
               'n_jobs':4,
               'scale_pos_weight': 1,
-              # 'num_boost_round': 200,
-              # 'early_stopping_rounds': 10,
+              'num_boost_round': 1000,
+              # 'n_estimators':100,
+              'early_stopping_rounds': 50,
               }
 
-def get_xgb_regressor(xgb_params):
-    xgb_clf = xgb.XGBRegressor(learning_rate=xgb_params['eta'],
-                               n_estimators=xgb_params['n_estimators'],
-                               max_depth=xgb_params['max_depth'],
-                               min_child_weight=xgb_params['min_child_weight'],
-                               gamma=xgb_params['gamma'],
-                               subsample=xgb_params['subsample'],
-                               colsample_bytree=xgb_params['colsample_bytree'],
-                               objective=xgb_params['objective'],
-                               nthread=xgb_params['n_jobs'],
-                               scale_pos_weight=xgb_params['scale_pos_weight'],
-                               seed=42)
-    return xgb_clf
 
-xgb_clf = get_xgb_regressor(xgb_params)
-
-if hyperparameter_tuning:
-    print('hyperparameter tuning ...')
-
-    params = {
-        # 'max_depth': range(4, 6, 2),
-        'max_depth': [4, 6],
-        # 'min_child_weight': range(2, 3, 2)
-        'min_child_weight': [2, 4],
-    }
-
-    gsearch = GridSearchCV(estimator=xgb_clf,
-                            param_grid=params,
-                            # scoring='roc_auc',
-                            scoring='neg_mean_squared_error',
-                            n_jobs=xgb_params['n_jobs'],
-                            iid=False,
-                            cv=xgb_params['n_fold'])
-    gsearch.fit(X_train, Y_train)
-    print(gsearch.grid_scores_)
-    print(gsearch.best_params_)
-    print(gsearch.best_score_)
-
-    xgb_params['max_depth'] = gsearch.best_params_['max_depth']
-    xgb_params['min_child_weight'] = gsearch.best_params_['min_child_weight']
-
+# def get_xgb_regressor(xgb_params):
+#     xgb_clf = xgb.XGBRegressor(learning_rate=xgb_params['eta'],
+#                                n_estimators=xgb_params['n_estimators'],
+#                                max_depth=xgb_params['max_depth'],
+#                                min_child_weight=xgb_params['min_child_weight'],
+#                                gamma=xgb_params['gamma'],
+#                                subsample=xgb_params['subsample'],
+#                                colsample_bytree=xgb_params['colsample_bytree'],
+#                                objective=xgb_params['objective'],
+#                                nthread=xgb_params['n_jobs'],
+#                                scale_pos_weight=xgb_params['scale_pos_weight'],
+#                                seed=42)
+#     return xgb_clf
+#
+# xgb_clf = get_xgb_regressor(xgb_params)
 
 # if hyperparameter_tuning:
-#     # tune 'max_depth' and 'min_child_weight'
-#     gridsearch_params = [
-#         (max_depth, min_child_weight)
-#         for max_depth in range(4, 9, 2)
-#         for min_child_weight in range(4, 9, 2)
-#     ]
+#     print('hyperparameter tuning ...')
 #
-#     min_rmse = float("Inf")
-#     best_params = None
+#     params = {
+#         # 'max_depth': range(4, 6, 2),
+#         'max_depth': [4, 6],
+#         # 'min_child_weight': range(2, 3, 2)
+#         'min_child_weight': [2, 4],
+#     }
 #
-#     for max_depth, min_child_weight in gridsearch_params:
-#         print("CV with max_depth={}, min_child_weight={}".format(max_depth, min_child_weight))
+#     gsearch = GridSearchCV(estimator=xgb_clf,
+#                             param_grid=params,
+#                             # scoring='roc_auc',
+#                             scoring='neg_mean_squared_error',
+#                             n_jobs=xgb_params['n_jobs'],
+#                             iid=False,
+#                             cv=xgb_params['n_fold'])
+#     gsearch.fit(X_train, Y_train)
+#     print(gsearch.grid_scores_)
+#     print(gsearch.best_params_)
+#     print(gsearch.best_score_)
 #
-#         xgb_params['max_depth'] = max_depth
-#         xgb_params['min_child_weight'] = min_child_weight
-#
-#         # TODO: change metrics
-#         cv_results = xgb.cv(
-#             xgb_params,
-#             dtrain_sub_mat,
-#             num_boost_round=num_boost_round,
-#             seed=42,
-#             nfold=n_fold,
-#             # metrics={'mae'},
-#             metrics={'rmse'},
-#             early_stopping_rounds=early_stopping_rounds
-#         )
-#
-#         # Update best score
-#         mean_rmse = cv_results['test-rmse-mean'].min()
-#         boost_rounds = cv_results['test-rmse-mean'].argmin()
-#         print("\tRMSE {} for {} rounds".format(mean_rmse, boost_rounds))
-#         if mean_rmse < min_rmse:
-#             min_rmse = mean_rmse
-#             best_params = (max_depth, min_child_weight)
-#
-#     print("Best params: {}, {}, RMSE: {}".format(best_params[0], best_params[1], min_rmse))
-#
-#     xgb_params['max_depth'] = best_params[0]
-#     xgb_params['min_child_weight'] = best_params[1]
-#
-#
-#     # tune 'subsample' and 'colsample'
-#     # subsample corresponds the fraction of observations (the rows) to subsample at each step.
-#     # By default it is set to 1 meaning that we use all rows.
-#     # colsample_bytree corresponds to the fraction of features (the columns) to use.
-#     # By default it is set to 1 meaning that we will use all features.
-#
-#     gridsearch_params = [
-#         (subsample, colsample)
-#         for subsample in [i/10. for i in range(7, 11)]
-#         for colsample in [i/10. for i in range(7, 11)]
-#     ]
-#
-#     min_rmse = float("Inf")
-#     best_params = None
-#
-#     for subsample, colsample in reversed(gridsearch_params):
-#         print("CV with subsample={}, colsample={}".format(
-#                                  subsample,
-#                                  colsample))
-#
-#         xgb_params['subsample'] = subsample
-#         xgb_params['colsample_bytree'] = colsample
-#
-#         cv_results = xgb.cv(
-#             xgb_params,
-#             dtrain_sub_mat,
-#             num_boost_round=num_boost_round,
-#             seed=42,
-#             nfold=n_fold,
-#             # metrics={'mae'},
-#             metrics={'rmse'},
-#             early_stopping_rounds=early_stopping_rounds
-#         )
-#
-#         mean_rmse = cv_results['test-rmse-mean'].min()
-#         boost_rounds = cv_results['test-rmse-mean'].argmin()
-#         print("\tRMSE {} for {} rounds".format(mean_rmse, boost_rounds))
-#         if mean_rmse < min_rmse:
-#             min_rmse = mean_rmse
-#             best_params = (subsample, colsample)
-#
-#     print("Best params: {}, {}, RMSE: {}".format(best_params[0], best_params[1], mean_rmse))
-#
-#     xgb_params['max_depth'] = best_params[0]
-#     xgb_params['min_child_weight'] = best_params[1]
-#
-#     # ----------------------
-#     # tune learning rate
-#     #
-#     min_rmse = float("Inf")
-#     best_learning_rate = None
-#     # learning_rate_range = [0.1, 0.05, 0.01, 0.005]
-#     learning_rate_range = [0.1, 0.05, 0.01]
-#
-#     for eta in learning_rate_range:
-#         print("CV with eta={}".format(eta))
-#
-#         xgb_params['eta'] = eta
-#
-#         cv_results = xgb.cv(
-#                 xgb_params,
-#                 dtrain_sub_mat,
-#                 num_boost_round=num_boost_round,
-#                 seed=42,
-#                 nfold=n_fold,
-#                 # metrics=['mae'],
-#                 metrics={'rmse'},
-#                 early_stopping_rounds=early_stopping_rounds
-#               )
-#
-#         mean_rmse = cv_results['test-rmse-mean'].min()
-#         boost_rounds = cv_results['test-rmse-mean'].argmin()
-#         print("\tRMSE {} for {} rounds".format(mean_rmse, boost_rounds))
-#         if mean_rmse < min_rmse:
-#             min_rmse = mean_rmse
-#             best_learning_rate = eta
-#
-#     print("Best params: {}, RMSE: {}".format(best_learning_rate, mean_rmse))
-#
-#     xgb_params['eta'] = best_learning_rate
-#
-#     # show parameters
-#     print('XBG parameters')
-#     print(xgb_params)
-#
-#     # ---------------
-#     # find the best number of boost round on the validation set
-#     #
-#     xgb_model = xgb.train(
-#         xgb_params,
-#         dtrain_sub_mat,
-#         num_boost_round=10,
-#         evals=[(dval_mat, "val")],
-#         early_stopping_rounds=early_stopping_rounds
-#     )
-#
-#     num_boost_round = xgb_model.best_iteration + 1
+#     xgb_params['max_depth'] = gsearch.best_params_['max_depth']
+#     xgb_params['min_child_weight'] = gsearch.best_params_['min_child_weight']
+
+
+if hyperparameter_tuning:
+    # tune 'max_depth' and 'min_child_weight'
+    gridsearch_params = [
+        (max_depth, min_child_weight)
+        for max_depth in range(4, 9, 2)
+        for min_child_weight in range(4, 9, 2)
+    ]
+
+    min_rmse = float("Inf")
+    best_params = None
+
+    for max_depth, min_child_weight in gridsearch_params:
+        print("CV with max_depth={}, min_child_weight={}".format(max_depth, min_child_weight))
+
+        xgb_params['max_depth'] = max_depth
+        xgb_params['min_child_weight'] = min_child_weight
+
+        # TODO: change metrics
+        cv_results = xgb.cv(
+            xgb_params,
+            dtrain_sub_mat,
+            num_boost_round=xgb_params['num_boost_round'],
+            seed=42,
+            nfold=xgb_params['n_fold'],
+            # metrics={'mae'},
+            metrics={'rmse'},
+            early_stopping_rounds=xgb_params['early_stopping_rounds']
+        )
+
+        # Update best score
+        mean_rmse = cv_results['test-rmse-mean'].min()
+        boost_rounds = cv_results['test-rmse-mean'].argmin()
+        print("\tRMSE {} for {} rounds".format(mean_rmse, boost_rounds))
+        if mean_rmse < min_rmse:
+            min_rmse = mean_rmse
+            best_params = (max_depth, min_child_weight)
+
+    print("Best params: {}, {}, RMSE: {}".format(best_params[0], best_params[1], min_rmse))
+
+    xgb_params['max_depth'] = best_params[0]
+    xgb_params['min_child_weight'] = best_params[1]
+
+
+    # tune 'subsample' and 'colsample'
+    # subsample corresponds the fraction of observations (the rows) to subsample at each step.
+    # By default it is set to 1 meaning that we use all rows.
+    # colsample_bytree corresponds to the fraction of features (the columns) to use.
+    # By default it is set to 1 meaning that we will use all features.
+
+    gridsearch_params = [
+        (subsample, colsample)
+        for subsample in [i/10. for i in range(7, 11)]
+        for colsample in [i/10. for i in range(7, 11)]
+    ]
+
+    min_rmse = float("Inf")
+    best_params = None
+
+    for subsample, colsample in reversed(gridsearch_params):
+        print("CV with subsample={}, colsample={}".format(
+                                 subsample,
+                                 colsample))
+
+        xgb_params['subsample'] = subsample
+        xgb_params['colsample_bytree'] = colsample
+
+        cv_results = xgb.cv(
+            xgb_params,
+            dtrain_sub_mat,
+            num_boost_round=xgb_params['num_boost_round'],
+            seed=42,
+            nfold=xgb_params['n_fold'],
+            # metrics={'mae'},
+            metrics={'rmse'},
+            early_stopping_rounds=xgb_params['early_stopping_rounds']
+        )
+
+        mean_rmse = cv_results['test-rmse-mean'].min()
+        boost_rounds = cv_results['test-rmse-mean'].argmin()
+        print("\tRMSE {} for {} rounds".format(mean_rmse, boost_rounds))
+        if mean_rmse < min_rmse:
+            min_rmse = mean_rmse
+            best_params = (subsample, colsample)
+
+    print("Best params: {}, {}, RMSE: {}".format(best_params[0], best_params[1], mean_rmse))
+
+    xgb_params['max_depth'] = best_params[0]
+    xgb_params['min_child_weight'] = best_params[1]
+
+    # ----------------------
+    # tune learning rate
+    #
+    min_rmse = float("Inf")
+    best_learning_rate = None
+    # learning_rate_range = [0.1, 0.05, 0.01, 0.005]
+    learning_rate_range = [0.1, 0.05, 0.01]
+
+    for eta in learning_rate_range:
+        print("CV with eta={}".format(eta))
+
+        xgb_params['eta'] = eta
+
+        cv_results = xgb.cv(
+                xgb_params,
+                dtrain_sub_mat,
+                num_boost_round=xgb_params['num_boost_round'],
+                seed=42,
+                nfold=xgb_params['n_fold'],
+                # metrics=['mae'],
+                metrics={'rmse'},
+                early_stopping_rounds=xgb_params['early_stopping_rounds']
+              )
+
+        mean_rmse = cv_results['test-rmse-mean'].min()
+        boost_rounds = cv_results['test-rmse-mean'].argmin()
+        print("\tRMSE {} for {} rounds".format(mean_rmse, boost_rounds))
+        if mean_rmse < min_rmse:
+            min_rmse = mean_rmse
+            best_learning_rate = eta
+
+    print("Best params: {}, RMSE: {}".format(best_learning_rate, mean_rmse))
+
+    xgb_params['eta'] = best_learning_rate
+
+    # show parameters
+    print('XBG parameters')
+    print(xgb_params)
+
+    # ---------------
+    # find the best number of boost round on the validation set
+    #
+    xgb_clf = xgb.train(
+        xgb_params,
+        dtrain_sub_mat,
+        num_boost_round=xgb_params['num_boost_round'],
+        evals=[(dval_mat, "val")],
+        early_stopping_rounds=xgb_params['early_stopping_rounds']
+    )
+
+    num_boost_round = xgb_clf.best_iteration + 1
 
 # ---------
 # train the final model with the tuned parameters on all the training set
 #
 # print('train final xgb model')
-# best_model = xgb.train(
+# xgb_clf = xgb.train(
 #     xgb_params,
 #     dtrain_mat,
 #     num_boost_round=num_boost_round,
 # )
+
+xgb_clf = xgb.train(
+        xgb_params,
+        dtrain_sub_mat,
+        num_boost_round=xgb_params['num_boost_round'],
+        evals=[(dval_mat, "val")],
+        early_stopping_rounds=xgb_params['early_stopping_rounds']
+        )
+
 # print(explained_variance_score(predictions,Y_val))
 
 
-# ---------
-# save the model
-
 # update the xgb model's parameters
-xgb_clf = get_xgb_regressor(xgb_params)
-xgb_clf.fit(X_train, Y_train)
+# xgb_clf = get_xgb_regressor(xgb_params)
+# xgb_clf.fit(X_train, Y_train)
 
 xgb_model_path = "xgb-[n_fold]{}-[n_estimators]{}-[max_depth]{}-[min_child_weight]{}-[eta]{}.model".format(xgb_params['n_fold'],
                                                                                                            xgb_params['n_estimators'],
                                                                                                            xgb_params['max_depth'],
                                                                                                            xgb_params['min_child_weight'],
                                                                                                            xgb_params['eta'])
-joblib.dump(xgb_clf, xgb_model_path)
+
+xgb_clf.save_model(xgb_model_path)
+# joblib.dump(xgb_clf, xgb_model_path)
+
 print('save xgb model to {}'.format(xgb_model_path))
 
 
@@ -367,6 +384,9 @@ print('save xgb model to {}'.format(xgb_model_path))
 
 # y_prediction = xgb_clf.predict(dtest_mat)
 y_pred = xgb_clf.predict(X_test)
+for i, pred in enumerate(y_pred):
+    if pred < 0:
+        y_pred[i] = 0
 # print(y_pred)
 y_pred_df = pd.DataFrame(data=y_pred)
 pred_path = "pred-[xgb]-[n_fold]{}-[n_estimators]{}-[max_depth]{}-[min_child_weight]{}-[eta]{}.csv".format(xgb_params['n_fold'],

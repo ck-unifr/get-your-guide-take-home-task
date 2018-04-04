@@ -143,11 +143,11 @@ xgb_params = {'eta':0.1,
               'min_child_weight':1,
               #'metrics':['auc'],
               #'metrics':['mae'],
-              'metrics':'rmse',
-              'eval_metric':'rmse',
-              # 'nthread':1,
+              'metrics':['rmse'],
+              'eval_metric':['rmse'],
+              'nthread': 4,
               'n_fold': 3,
-              'n_jobs':4,
+              'n_jobs': 4,
               'scale_pos_weight': 1,
               'num_boost_round': 1000,
               # 'n_estimators':100,
@@ -198,6 +198,8 @@ xgb_params = {'eta':0.1,
 
 
 if hyperparameter_tuning:
+    print('hyperparameter tuning ...')
+    
     # tune 'max_depth' and 'min_child_weight'
     gridsearch_params = [
         (max_depth, min_child_weight)

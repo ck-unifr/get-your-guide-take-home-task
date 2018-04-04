@@ -17,7 +17,7 @@ import xgboost as xgb
 from sklearn.grid_search import GridSearchCV
 from sklearn.metrics import explained_variance_score
 from sklearn.metrics import mean_squared_error
-
+from sklearn.externals import joblib
 
 
 TRAIN_FILE = 'ds_dp_assessment/train.csv'
@@ -120,11 +120,7 @@ dtest_mat = xgb.DMatrix(X_test)
 # https://cambridgespark.com/content/tutorials/hyperparameter-tuning-in-xgboost/index.html
 # https://www.analyticsvidhya.com/blog/2016/03/complete-guide-parameter-tuning-xgboost-with-codes-python/
 
-hyperparameter_tuning = True
-
-
-# num_boost_round = 200
-# early_stopping_rounds = 10
+hyperparameter_tuning = False
 
 
 # details of xgboost parameters
@@ -147,6 +143,8 @@ xgb_params = {'eta':0.1,
               'n_fold': 3,
               'n_jobs':4,
               'scale_pos_weight': 1,
+              # 'num_boost_round': 200,
+              # 'early_stopping_rounds': 10,
               }
 
 def get_xgb_regressor(xgb_params):
@@ -333,36 +331,49 @@ if hyperparameter_tuning:
 # ---------
 # train the final model with the tuned parameters on all the training set
 #
-print('train final xgb model')
+# print('train final xgb model')
 # best_model = xgb.train(
 #     xgb_params,
 #     dtrain_mat,
 #     num_boost_round=num_boost_round,
 # )
 # print(explained_variance_score(predictions,Y_val))
-xgb_clf = get_xgb_regressor(xgb_params)
+
 
 # ---------
 # save the model
+
+# update the xgb model's parameters
+xgb_clf = get_xgb_regressor(xgb_params)
+xgb_clf.fit(X_train, Y_train)
+
 xgb_model_path = "xgb-[n_fold]{}-[n_estimators]{}-[max_depth]{}-[min_child_weight]{}-[eta]{}.model".format(xgb_params['n_fold'],
                                                                                                            xgb_params['n_estimators'],
                                                                                                            xgb_params['max_depth'],
                                                                                                            xgb_params['min_child_weight'],
                                                                                                            xgb_params['eta'])
-xgb_clf.save_model(xgb_model_path)
+joblib.dump(xgb_clf, xgb_model_path)
 print('save xgb model to {}'.format(xgb_model_path))
 
 
 # -------------
 # prediction
+
 # xgb_clf = xgb.Booster()
-# xgb_clf.load_model("my_model.model")
+# xgb_clf.load_model(xgb_model_path)
+# xgb_clf = joblib.load(xgb_model_path)
+
 # y_prediction = xgb_clf.predict(dtest_mat)
 y_pred = xgb_clf.predict(X_test)
-print('y prediction')
-print(y_pred)
-
-
+# print(y_pred)
+y_pred_df = pd.DataFrame(data=y_pred)
+pred_path = "pred-[xgb]-[n_fold]{}-[n_estimators]{}-[max_depth]{}-[min_child_weight]{}-[eta]{}.csv".format(xgb_params['n_fold'],
+                                                                                                           xgb_params['n_estimators'],
+                                                                                                           xgb_params['max_depth'],
+                                                                                                           xgb_params['min_child_weight'],
+                                                                                                           xgb_params['eta'])
+y_pred_df.to_csv(pred_path, index=False)
+print('save prediction to {}'.format(pred_path))
 
 
 # -------------

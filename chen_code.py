@@ -1,7 +1,7 @@
 # GetYourGuide data science take home task
 #
 # Author: Kai Chen
-# Date: Mar, 2018
+# Date: Apr, 2018
 #
 
 import pandas as pd
@@ -20,6 +20,8 @@ from sklearn.metrics import mean_squared_error
 from sklearn.externals import joblib
 
 
+# -----------
+# Define the file path
 TRAIN_FILE = 'ds_dp_assessment/train.csv'
 TEST_FILE = 'ds_dp_assessment/prediction.csv'
 
@@ -27,16 +29,17 @@ TEST_FILE = 'ds_dp_assessment/prediction.csv'
 #--------------------
 # 1. Data preparation
 #
+
+# load datasets
 train_df = pd.read_csv(TRAIN_FILE)
 train_df['RPC'] = train_df['Revenue']/train_df['Clicks']
 test_df = pd.read_csv(TEST_FILE)
 
+# show dataset information
 print('max RPC {}'.format(train_df['RPC'].max()))
 print('min RPC {}'.format(train_df['RPC'].min()))
 print('mean RPC {}'.format(train_df['RPC'].mean()))
 print('std RPC {}'.format(train_df['RPC'].std()))
-
-
 
 #print(train_df.head())
 #print(train_df.describe())
@@ -48,6 +51,7 @@ print('test data')
 print(test_df.describe())
 print('----------------')
 
+# prepare datasets: x_train (features of train set), y_train (targets of train set), and x_test (features of test set)
 feature_column_names = ['Keyword_ID', 'Ad_group_ID', 'Campaign_ID', 'Account_ID', 'Device_ID', 'Match_type_ID']
 X_train = train_df[feature_column_names]
 Y_train = train_df['RPC']
@@ -64,7 +68,7 @@ print(X_test.shape)
 print('----------------')
 
 #--------------------
-# 2. Feature engineering
+# 2. Feature engineering (TODO)
 #
 # hasher = FeatureHasher(n_features=5,
 #             non_negative=True,
@@ -81,14 +85,16 @@ print('----------------')
 # 3. Model training
 #
 
-# examples of using xgboost for regression
-#xgb_clf = xgb.XGBRegressor(n_estimators=100, learning_rate=0.08, gamma=0, subsample=0.75,
+# Examples of using xgboost for regression
+# example 1
+# xgb_clf = xgb.XGBRegressor(n_estimators=100, learning_rate=0.08, gamma=0, subsample=0.75,
 #                           colsample_bytree=1, max_depth=7)
-#xgb_clf.fit(X_train_sub, Y_train_sub)
-#predictions = xgb_clf.predict(X_val)
-#print(predictions)
-#print(explained_variance_score(predictions,Y_val))
+# xgb_clf.fit(X_train_sub, Y_train_sub)
+# predictions = xgb_clf.predict(X_val)
+# print(predictions)
+# print(explained_variance_score(predictions,Y_val))
 
+# example 2
 # xgb_clf = xgb.train(
 #     xgb_params,
 #     dtrain_mat,
@@ -96,7 +102,6 @@ print('----------------')
 #     #evals=[(dval_mat, "Test")],
 #     #early_stopping_rounds=10
 # )
-
 # cv_results = xgb.cv(
 #     xgb_params,
 #     dtrain_mat,
@@ -120,17 +125,8 @@ dval_mat = xgb.DMatrix(X_val, Y_val)
 dtest_mat = xgb.DMatrix(X_test)
 
 
-
-# -------------------------------
-# hyperparameter tuning with CV
-# ideas are taken from:
-# https://cambridgespark.com/content/tutorials/hyperparameter-tuning-in-xgboost/index.html
-# https://www.analyticsvidhya.com/blog/2016/03/complete-guide-parameter-tuning-xgboost-with-codes-python/
-
-hyperparameter_tuning = False
-
-
-# details of xgboost parameters
+# Initialize xgb parameters
+# details of xgboost parameters can be found in
 # http://xgboost.readthedocs.io/en/latest/parameter.html
 xgb_params = {'eta':0.1,
               'seed':42,
@@ -150,56 +146,22 @@ xgb_params = {'eta':0.1,
               'n_jobs': 4,
               'scale_pos_weight': 1,
               'num_boost_round': 1000,
-              # 'n_estimators':100,
+              # 'n_estimators':1000,
               'early_stopping_rounds': 50,
               }
 
-
-# def get_xgb_regressor(xgb_params):
-#     xgb_clf = xgb.XGBRegressor(learning_rate=xgb_params['eta'],
-#                                n_estimators=xgb_params['n_estimators'],
-#                                max_depth=xgb_params['max_depth'],
-#                                min_child_weight=xgb_params['min_child_weight'],
-#                                gamma=xgb_params['gamma'],
-#                                subsample=xgb_params['subsample'],
-#                                colsample_bytree=xgb_params['colsample_bytree'],
-#                                objective=xgb_params['objective'],
-#                                nthread=xgb_params['n_jobs'],
-#                                scale_pos_weight=xgb_params['scale_pos_weight'],
-#                                seed=42)
-#     return xgb_clf
-#
-# xgb_clf = get_xgb_regressor(xgb_params)
-
-# if hyperparameter_tuning:
-#     print('hyperparameter tuning ...')
-#
-#     params = {
-#         # 'max_depth': range(4, 6, 2),
-#         'max_depth': [4, 6],
-#         # 'min_child_weight': range(2, 3, 2)
-#         'min_child_weight': [2, 4],
-#     }
-#
-#     gsearch = GridSearchCV(estimator=xgb_clf,
-#                             param_grid=params,
-#                             # scoring='roc_auc',
-#                             scoring='neg_mean_squared_error',
-#                             n_jobs=xgb_params['n_jobs'],
-#                             iid=False,
-#                             cv=xgb_params['n_fold'])
-#     gsearch.fit(X_train, Y_train)
-#     print(gsearch.grid_scores_)
-#     print(gsearch.best_params_)
-#     print(gsearch.best_score_)
-#
-#     xgb_params['max_depth'] = gsearch.best_params_['max_depth']
-#     xgb_params['min_child_weight'] = gsearch.best_params_['min_child_weight']
-
-
+# TODO: hyperparameter tuning with k-fold cross-validation
+hyperparameter_tuning = False
 if hyperparameter_tuning:
-    print('hyperparameter tuning ...')
-    
+    print('xgb hyperparameter tuning ...')
+
+    # -------------------------------
+    # xgb hyperparameter tuning with CV
+    # ideas are taken from:
+    # https://cambridgespark.com/content/tutorials/hyperparameter-tuning-in-xgboost/index.html
+    # https://www.analyticsvidhya.com/blog/2016/03/complete-guide-parameter-tuning-xgboost-with-codes-python/
+
+    # ------------
     # tune 'max_depth' and 'min_child_weight'
     gridsearch_params = [
         (max_depth, min_child_weight)
@@ -209,7 +171,6 @@ if hyperparameter_tuning:
 
     min_rmse = float("Inf")
     best_params = None
-
     for max_depth, min_child_weight in gridsearch_params:
         print("CV with max_depth={}, min_child_weight={}".format(max_depth, min_child_weight))
 
@@ -343,20 +304,21 @@ if hyperparameter_tuning:
 # ---------
 # train the final model with the tuned parameters on all the training set
 #
-# print('train final xgb model')
-# xgb_clf = xgb.train(
-#     xgb_params,
-#     dtrain_mat,
-#     num_boost_round=num_boost_round,
-# )
 
 xgb_clf = xgb.train(
         xgb_params,
         dtrain_sub_mat,
         num_boost_round=xgb_params['num_boost_round'],
         evals=[(dval_mat, "val")],
-        early_stopping_rounds=xgb_params['early_stopping_rounds']
-        )
+        early_stopping_rounds=xgb_params['early_stopping_rounds'])
+
+# num_boost_round = xgb_clf.best_iteration + 1
+# print('train final xgb model')
+# xgb_clf = xgb.train(
+#     xgb_params,
+#     dtrain_mat,
+#     num_boost_round=num_boost_round,
+# )
 
 # print(explained_variance_score(predictions,Y_val))
 
@@ -366,7 +328,7 @@ xgb_clf = xgb.train(
 # xgb_clf.fit(X_train, Y_train)
 
 xgb_model_path = "xgb-[n_fold]{}-[n_estimators]{}-[max_depth]{}-[min_child_weight]{}-[eta]{}.model".format(xgb_params['n_fold'],
-                                                                                                           xgb_params['n_estimators'],
+                                                                                                           xgb_params['num_boost_round'],
                                                                                                            xgb_params['max_depth'],
                                                                                                            xgb_params['min_child_weight'],
                                                                                                            xgb_params['eta'])
@@ -392,7 +354,7 @@ for i, pred in enumerate(y_pred):
 # print(y_pred)
 y_pred_df = pd.DataFrame(data=y_pred)
 pred_path = "pred-[xgb]-[n_fold]{}-[n_estimators]{}-[max_depth]{}-[min_child_weight]{}-[eta]{}.csv".format(xgb_params['n_fold'],
-                                                                                                           xgb_params['n_estimators'],
+                                                                                                           xgb_params['num_boost_round'],
                                                                                                            xgb_params['max_depth'],
                                                                                                            xgb_params['min_child_weight'],
                                                                                                            xgb_params['eta'])

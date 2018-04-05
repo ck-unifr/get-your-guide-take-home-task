@@ -30,26 +30,25 @@ TEST_FILE = 'ds_dp_assessment/prediction.csv'
 # 1. Data preparation
 #
 
-# load datasets
+# load data
 train_df = pd.read_csv(TRAIN_FILE)
 train_df['RPC'] = train_df['Revenue']/train_df['Clicks']
 test_df = pd.read_csv(TEST_FILE)
 
-# show dataset information
-print('max RPC {}'.format(train_df['RPC'].max()))
-print('min RPC {}'.format(train_df['RPC'].min()))
-print('mean RPC {}'.format(train_df['RPC'].mean()))
-print('std RPC {}'.format(train_df['RPC'].std()))
-
 #print(train_df.head())
 #print(train_df.describe())
-
 print('----------------')
 print('train data')
 print(train_df.describe())
 print('test data')
 print(test_df.describe())
 print('----------------')
+
+
+print('max RPC {}'.format(train_df['RPC'].max()))
+print('min RPC {}'.format(train_df['RPC'].min()))
+print('mean RPC {}'.format(train_df['RPC'].mean()))
+print('std RPC {}'.format(train_df['RPC'].std()))
 
 
 #--------------------
@@ -74,6 +73,9 @@ print(X_test.shape)
 print('----------------')
 
 # TODO: find more sophisticated category feature engineering approaches
+# get some ideas from
+# https://blog.myyellowroad.com/using-categorical-data-in-machine-learning-with-python-from-dummy-variables-to-deep-category-66041f734512
+# https://medium.com/unstructured/how-feature-engineering-can-help-you-do-well-in-a-kaggle-competition-part-i-9cc9a883514d
 # hasher = FeatureHasher(n_features=5,
 #             non_negative=True,
 #             input_type='string')
@@ -129,6 +131,7 @@ dval_mat = xgb.DMatrix(X_val, Y_val)
 dtest_mat = xgb.DMatrix(X_test)
 
 
+# ----------------------
 # Initialize xgb parameters
 # details of xgboost parameters can be found in
 # http://xgboost.readthedocs.io/en/latest/parameter.html
@@ -146,16 +149,16 @@ xgb_params = {'eta':0.1,
               'metrics':['rmse'],
               'eval_metric':['rmse'],
               'nthread': 10,
-              'n_fold': 2,
+              'n_fold': 3,
               # 'n_jobs': 4,
               'scale_pos_weight': 1,
-              'num_boost_round': 200,
+              'num_boost_round': 100,
               # 'n_estimators':200,
               'early_stopping_rounds': 10,
               }
 
 # TODO: hyperparameter tuning with k-fold cross-validation
-hyperparameter_tuning = False
+hyperparameter_tuning = True
 
 if hyperparameter_tuning:
     print('xgb hyperparameter tuning ...')
@@ -168,11 +171,11 @@ if hyperparameter_tuning:
 
     # ------------
     # tune 'max_depth' and 'min_child_weight'
-    print('tune max_depth and min_child_weight ...')
+    print('\n tune max_depth and min_child_weight ...')
     gridsearch_params = [
         (max_depth, min_child_weight)
-        for max_depth in range(4, 7, 1)
-        for min_child_weight in range(4, 7, 1)
+        for max_depth in range(4, 9, 2)
+        for min_child_weight in range(2, 7, 2)
     ]
 
     min_rmse = float("Inf")
@@ -214,7 +217,7 @@ if hyperparameter_tuning:
     # By default it is set to 1 meaning that we use all rows.
     # colsample_bytree corresponds to the fraction of features (the columns) to use.
     # By default it is set to 1 meaning that we will use all features.
-    print('tune subsample and colsample ...')
+    print('\n tune subsample and colsample ...')
     gridsearch_params = [
         (subsample, colsample)
         for subsample in [i/10. for i in range(6, 11, 2)]
@@ -259,12 +262,12 @@ if hyperparameter_tuning:
     # ----------------------
     # tune learning rate
     #
-    print('tune learning rate ...')
+    print('\n tune learning rate ...')
 
     min_rmse = float("Inf")
     best_learning_rate = None
     # learning_rate_range = [0.1, 0.05, 0.01, 0.005]
-    learning_rate_range = [0.1, 0.05, 0.01]
+    learning_rate_range = [0.1, 0.05, 0.01, 0.005]
 
     for eta in learning_rate_range:
         print("CV with eta={}".format(eta))
@@ -294,43 +297,42 @@ if hyperparameter_tuning:
     xgb_params['eta'] = best_learning_rate
 
     # show parameters
-    print('XBG parameters')
+    print('\n XBG parameters')
     print(xgb_params)
 
 
 
 # ---------------
-# TODO: find the best number of boost round on the validation set
+# find the best number of boost round on the validation set
 #
-# print('find the best number of boost ...')
-# xgb_clf = xgb.train(
-#     xgb_params,
-#     dtrain_sub_mat,
-#     num_boost_round=xgb_params['num_boost_round'],
-#     evals=[(dval_mat, "val")],
-#     early_stopping_rounds=xgb_params['early_stopping_rounds']
-# )
-# num_boost_round = xgb_clf.best_iteration + 1
-# xgb_params['num_boost_round'] = num_boost_round
+print('find the best number of boost ...')
+xgb_clf = xgb.train(
+    xgb_params,
+    dtrain_sub_mat,
+    num_boost_round=xgb_params['num_boost_round'],
+    evals=[(dval_mat, "val")],
+    early_stopping_rounds=xgb_params['early_stopping_rounds']
+)
+num_boost_round = xgb_clf.best_iteration + 1
+xgb_params['num_boost_round'] = num_boost_round
 
 # ---------
 # train the final model with the tuned parameters on all the training set
 #
-print('train a xgb model ...')
-xgb_clf = xgb.train(
-        xgb_params,
-        dtrain_sub_mat,
-        num_boost_round=xgb_params['num_boost_round'],
-        evals=[(dval_mat, "val")],
-        early_stopping_rounds=xgb_params['early_stopping_rounds'])
-
-
-# print('train a xgb model ...')
+# print('train a xgb model with early stopping ...')
 # xgb_clf = xgb.train(
-#     xgb_params,
-#     dtrain_mat,
-#     num_boost_round=xgb_params['num_boost_round'],
-# )
+#         xgb_params,
+#         dtrain_sub_mat,
+#         num_boost_round=xgb_params['num_boost_round'],
+#         evals=[(dval_mat, "val")],
+#         early_stopping_rounds=xgb_params['early_stopping_rounds'])
+
+print('train a xgb model on all the train data ...')
+xgb_clf = xgb.train(
+    xgb_params,
+    dtrain_mat,
+    num_boost_round=xgb_params['num_boost_round'],
+)
 
 # print(explained_variance_score(predictions,Y_val))
 

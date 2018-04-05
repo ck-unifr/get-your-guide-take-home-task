@@ -59,7 +59,6 @@ print('----------------')
 # prepare datasets: x_train (features of train set), y_train (targets of train set), and x_test (features of test set)
 feature_column_names = ['Keyword_ID', 'Ad_group_ID', 'Campaign_ID', 'Account_ID', 'Device_ID', 'Match_type_ID']
 
-
 X_train = train_df[feature_column_names]
 Y_train = train_df['RPC']
 
@@ -74,7 +73,7 @@ print('x test shape')
 print(X_test.shape)
 print('----------------')
 
-# TODO: find more sophisticate category feature engineering approaches
+# TODO: find more sophisticated category feature engineering approaches
 # hasher = FeatureHasher(n_features=5,
 #             non_negative=True,
 #             input_type='string')
@@ -146,11 +145,11 @@ xgb_params = {'eta':0.1,
               #'metrics':['mae'],
               'metrics':['rmse'],
               'eval_metric':['rmse'],
-              'nthread': 8,
+              'nthread': 10,
               'n_fold': 2,
-              'n_jobs': 4,
+              # 'n_jobs': 4,
               'scale_pos_weight': 1,
-              'num_boost_round': 100,
+              'num_boost_round': 200,
               # 'n_estimators':200,
               'early_stopping_rounds': 10,
               }
@@ -317,7 +316,7 @@ if hyperparameter_tuning:
 # ---------
 # train the final model with the tuned parameters on all the training set
 #
-print('train the final model ...')
+print('train a xgb model ...')
 xgb_clf = xgb.train(
         xgb_params,
         dtrain_sub_mat,
@@ -325,12 +324,12 @@ xgb_clf = xgb.train(
         evals=[(dval_mat, "val")],
         early_stopping_rounds=xgb_params['early_stopping_rounds'])
 
-# num_boost_round = xgb_clf.best_iteration + 1
-# print('train final xgb model')
+
+# print('train a xgb model ...')
 # xgb_clf = xgb.train(
 #     xgb_params,
 #     dtrain_mat,
-#     num_boost_round=num_boost_round,
+#     num_boost_round=xgb_params['num_boost_round'],
 # )
 
 # print(explained_variance_score(predictions,Y_val))
@@ -364,6 +363,8 @@ for i, pred in enumerate(y_pred):
     if pred < 0:
         y_pred[i] = 0
 # print(y_pred)
+
+# save the predictions
 y_pred_df = pd.DataFrame(data=y_pred)
 pred_path = "pred-[xgb]-[n_fold]{}-[n_estimators]{}-[max_depth]{}-[min_child_weight]{}-[eta]{}.csv".format(xgb_params['n_fold'],
                                                                                                            xgb_params['num_boost_round'],

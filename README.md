@@ -1,5 +1,7 @@
 # GetYourGuide take home task
 
+- Author: Kai Chen
+- Date: Apr, 2018
 
 * The code files:
     * notebook: chen_code.ipynb

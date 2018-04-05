@@ -86,7 +86,7 @@ print('----------------')
 #
 
 # Examples of using xgboost for regression
-# example 1
+# - Example 1
 # xgb_clf = xgb.XGBRegressor(n_estimators=100, learning_rate=0.08, gamma=0, subsample=0.75,
 #                           colsample_bytree=1, max_depth=7)
 # xgb_clf.fit(X_train_sub, Y_train_sub)
@@ -94,7 +94,7 @@ print('----------------')
 # print(predictions)
 # print(explained_variance_score(predictions,Y_val))
 
-# example 2
+# - Example 2
 # xgb_clf = xgb.train(
 #     xgb_params,
 #     dtrain_mat,
@@ -135,23 +135,24 @@ xgb_params = {'eta':0.1,
               'colsample_bytree':0.8,
               'objective':'reg:linear',
               #'objective':'binary:logistic',
-              'max_depth':8,
-              'min_child_weight':1,
+              'max_depth': 4,
+              'min_child_weight': 1,
               #'metrics':['auc'],
               #'metrics':['mae'],
               'metrics':['rmse'],
               'eval_metric':['rmse'],
-              'nthread': 4,
-              'n_fold': 3,
+              'nthread': 8,
+              'n_fold': 2,
               'n_jobs': 4,
               'scale_pos_weight': 1,
-              'num_boost_round': 1000,
-              # 'n_estimators':1000,
-              'early_stopping_rounds': 50,
+              'num_boost_round': 100,
+              # 'n_estimators':200,
+              'early_stopping_rounds': 10,
               }
 
 # TODO: hyperparameter tuning with k-fold cross-validation
-hyperparameter_tuning = False
+hyperparameter_tuning = True
+
 if hyperparameter_tuning:
     print('xgb hyperparameter tuning ...')
 
@@ -163,10 +164,11 @@ if hyperparameter_tuning:
 
     # ------------
     # tune 'max_depth' and 'min_child_weight'
+    print('tune max_depth and min_child_weight ...')
     gridsearch_params = [
         (max_depth, min_child_weight)
-        for max_depth in range(4, 9, 2)
-        for min_child_weight in range(4, 9, 2)
+        for max_depth in range(4, 7, 1)
+        for min_child_weight in range(4, 7, 1)
     ]
 
     min_rmse = float("Inf")
@@ -208,11 +210,11 @@ if hyperparameter_tuning:
     # By default it is set to 1 meaning that we use all rows.
     # colsample_bytree corresponds to the fraction of features (the columns) to use.
     # By default it is set to 1 meaning that we will use all features.
-
+    print('tune subsample and colsample ...')
     gridsearch_params = [
         (subsample, colsample)
-        for subsample in [i/10. for i in range(7, 11)]
-        for colsample in [i/10. for i in range(7, 11)]
+        for subsample in [i/10. for i in range(6, 11, 2)]
+        for colsample in [i/10. for i in range(6, 11, 2)]
     ]
 
     min_rmse = float("Inf")
@@ -246,12 +248,15 @@ if hyperparameter_tuning:
 
     print("Best params: {}, {}, RMSE: {}".format(best_params[0], best_params[1], mean_rmse))
 
-    xgb_params['max_depth'] = best_params[0]
-    xgb_params['min_child_weight'] = best_params[1]
+    xgb_params['subsample'] = best_params[0]
+    xgb_params['colsample_bytree'] = best_params[1]
+
 
     # ----------------------
     # tune learning rate
     #
+    print('tune learning rate ...')
+
     min_rmse = float("Inf")
     best_learning_rate = None
     # learning_rate_range = [0.1, 0.05, 0.01, 0.005]
@@ -288,23 +293,26 @@ if hyperparameter_tuning:
     print('XBG parameters')
     print(xgb_params)
 
-    # ---------------
-    # find the best number of boost round on the validation set
-    #
-    xgb_clf = xgb.train(
-        xgb_params,
-        dtrain_sub_mat,
-        num_boost_round=xgb_params['num_boost_round'],
-        evals=[(dval_mat, "val")],
-        early_stopping_rounds=xgb_params['early_stopping_rounds']
-    )
 
-    num_boost_round = xgb_clf.best_iteration + 1
+
+# ---------------
+# TODO: find the best number of boost round on the validation set
+#
+# print('find the best number of boost ...')
+# xgb_clf = xgb.train(
+#     xgb_params,
+#     dtrain_sub_mat,
+#     num_boost_round=xgb_params['num_boost_round'],
+#     evals=[(dval_mat, "val")],
+#     early_stopping_rounds=xgb_params['early_stopping_rounds']
+# )
+# num_boost_round = xgb_clf.best_iteration + 1
+# xgb_params['num_boost_round'] = num_boost_round
 
 # ---------
 # train the final model with the tuned parameters on all the training set
 #
-
+print('train the final model ...')
 xgb_clf = xgb.train(
         xgb_params,
         dtrain_sub_mat,
@@ -335,19 +343,18 @@ xgb_model_path = "xgb-[n_fold]{}-[n_estimators]{}-[max_depth]{}-[min_child_weigh
 
 xgb_clf.save_model(xgb_model_path)
 # joblib.dump(xgb_clf, xgb_model_path)
-
 print('save xgb model to {}'.format(xgb_model_path))
 
 
 # -------------
-# prediction
+# predict RPC on test data
 
 # xgb_clf = xgb.Booster()
 # xgb_clf.load_model(xgb_model_path)
 # xgb_clf = joblib.load(xgb_model_path)
+y_pred = xgb_clf.predict(dtest_mat)
 
-# y_prediction = xgb_clf.predict(dtest_mat)
-y_pred = xgb_clf.predict(X_test)
+# post-processing
 for i, pred in enumerate(y_pred):
     if pred < 0:
         y_pred[i] = 0
@@ -363,8 +370,7 @@ print('save prediction to {}'.format(pred_path))
 
 
 # -------------
-# evaluation
-# mean_squared_error(y_prediction, y_test)
+# TODO: evaluation
 
 # cv_results = xgb.cv(
 #     xgb_params,
@@ -377,7 +383,7 @@ print('save prediction to {}'.format(pred_path))
 #     early_stopping_rounds=10
 # )
 # print(cvresult)
-#
+
 # y_pred_val = xgb_clf.predict(xgb_val_mat)
 # print(y_pred_val)
 #
@@ -385,4 +391,4 @@ print('save prediction to {}'.format(pred_path))
 # # Explained variance score: 1 is perfect prediction
 # print('Variance score: %.2f' % r2_score(Y_val, y_pred_val))
 
-
+# mean_squared_error(y_prediction, y_test)

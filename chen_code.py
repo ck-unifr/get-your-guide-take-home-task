@@ -398,3 +398,12 @@ print('save prediction to {}'.format(pred_path))
 # print('Variance score: %.2f' % r2_score(Y_val, y_pred_val))
 
 # mean_squared_error(y_prediction, y_test)
+
+
+# -----------------------
+# Future work
+# - Develop more sophisticated category feature engineering approaches.
+# - Blend different regression models.
+# - Evaluate the model performance and compare it with the baseline methods.
+# - Study other solutions on kaggle for relevant the competitions (e.g., Click-Through Rate Prediction by Avazu, Display Advertising Challenge, ).
+#

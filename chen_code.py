@@ -51,8 +51,15 @@ print('test data')
 print(test_df.describe())
 print('----------------')
 
+
+#--------------------
+# 2. Feature engineering
+#
+
 # prepare datasets: x_train (features of train set), y_train (targets of train set), and x_test (features of test set)
 feature_column_names = ['Keyword_ID', 'Ad_group_ID', 'Campaign_ID', 'Account_ID', 'Device_ID', 'Match_type_ID']
+
+
 X_train = train_df[feature_column_names]
 Y_train = train_df['RPC']
 
@@ -67,9 +74,7 @@ print('x test shape')
 print(X_test.shape)
 print('----------------')
 
-#--------------------
-# 2. Feature engineering (TODO)
-#
+# TODO: find more sophisticate category feature engineering approaches
 # hasher = FeatureHasher(n_features=5,
 #             non_negative=True,
 #             input_type='string')
@@ -135,7 +140,7 @@ xgb_params = {'eta':0.1,
               'colsample_bytree':0.8,
               'objective':'reg:linear',
               #'objective':'binary:logistic',
-              'max_depth': 4,
+              'max_depth': 8,
               'min_child_weight': 1,
               #'metrics':['auc'],
               #'metrics':['mae'],
@@ -151,7 +156,7 @@ xgb_params = {'eta':0.1,
               }
 
 # TODO: hyperparameter tuning with k-fold cross-validation
-hyperparameter_tuning = True
+hyperparameter_tuning = False
 
 if hyperparameter_tuning:
     print('xgb hyperparameter tuning ...')
